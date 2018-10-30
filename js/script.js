@@ -51,7 +51,7 @@
 	/**
 	 * Make XHR request to get news magazine
 	 */
-	var getAPIData = function (callback) {
+	var getAPIData = function (success, failure) {
 		var data;
 		// Set up our HTTP Request
 		var xhr = new XMLHttpRequest();
@@ -64,8 +64,10 @@
 
 			// Process our return data
 			if (xhr.status >= 200 && xhr.status < 300) {
-				data = JSON.parse(xhr.responseText);
-				callback(data);
+				var data = JSON.parse(xhr.responseText);
+				success(data);
+			} else {
+				failure();
 			}
 		};
 
@@ -74,46 +76,73 @@
 		xhr.send();
 	};
 
-	// Set up localStorage data
-	var getLocalData = function () {
+	/**
+	 * Render the app
+	 */
+	var renderApp = function () {
 
 		// Get data from localStorage
 		var data = JSON.parse(localStorage.getItem('magazine'));
 
-		// Check if there is no data or data has expired
-		if (!data || !isDataValid(data)) {
+		// If there is no data
+		if (!data) {
 
-			// Create new data
-			getAPIData(function(data) {
-				if (data) {
-					var saved = {
-						data: data,
-						timestamp: new Date().getTime(),
-					};
-
-					// Save to localStorage
-					localStorage.setItem('magazine', JSON.stringify(saved));
-					data = JSON.parse(localStorage.getItem('magazine'));
-				}
-			});
+			// Make an API call
+			// If API call successes, render and save data to localStorage
+			// It not, render error message
+			getAPIData(function (data) {
+				renderNews(data);
+				saveLocalData(data);
+			}, renderErrorMessage);
+			return;
 		}
-		return data;
+
+		// If data is expired
+		if (!isDataValid(data)) {
+
+			// Make an API call
+			getAPIData(function(data) {
+
+				// If API call successes, render and save data to localStorage
+				renderNews(data);
+				saveLocalData(data);
+			}, function () {
+				// If API call fails, fall back to cached data
+				renderNews(data.data);
+			});
+			return;
+		}
+
+		renderNews(data.data);
 	};
 
-	var renderNews = function () {
-		var news = getLocalData();
+	/**
+	 * Save data to localStorage
+	 * @param {Object} data Data from API response
+	 */
+	var saveLocalData = function (data) {
+		var saved = {
+			data: data,
+			timestamp: new Date().getTime(),
+		};
+		localStorage.setItem('magazine', JSON.stringify(saved));
+	};
 
-		// Render error message if there is no data
-		if (!news) {
+	/**
+	 * Render articles from data response
+	 * @param {Object} data Data from API response
+	 */
+	var renderNews = function (data) {
+
+		// Bail if there is no data
+		if (!data) {
 			renderErrorMessage();
 			return;
 		}
 
-		// Render news
-		var data = news.data;
 		var content = '<p>' + sanitizeHTML(data.tagline) + '</p>';
 
-		news.data.articles.forEach(function (article) {
+		data.articles.forEach(function (article) {
 			content +=
 				'<article class="entry">' +
 					'<time class="entry-date">' + sanitizeHTML(article.pubdate) + '</time>' +
@@ -126,6 +155,9 @@
 		app.innerHTML = content;
 	};
 
+	/**
+	 * Render error message if there is no data or API call fails
+	 */
 	var renderErrorMessage = function () {
 		var content =
 			'<img src="images/oops.gif" alt="Photo of error message">' +
@@ -135,6 +167,6 @@
 
 	};
 
-	renderNews();
+	renderApp();
 
 })(window, document);
