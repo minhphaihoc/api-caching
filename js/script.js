@@ -1,0 +1,140 @@
+;(function (window, document, undefined) {
+	'use strict';
+
+	var app = document.querySelector('#app');
+	if (!app) return;
+
+	/**
+	 * Dynamically vary the API endpoint
+	 * @return {String} The API endpoint
+	 */
+	var getEndpoint = function () {
+		var endpoint = 'https://vanillajsacademy.com/api/';
+		var random = Math.random();
+		if (random < 0.3) return endpoint + 'pirates.json';
+		if (random < 0.6) return endpoint + 'pirates2.json';
+		return endpoint + 'fail.json';
+	};
+
+	/**
+	 * Sanitize and encode all HTML in a user-submitted string
+	 * @param  {String} str  The user-submitted string
+	 * @return {String} str  The sanitized string
+	 */
+	var sanitizeHTML = function (str) {
+		var temp = document.createElement('div');
+		temp.textContent = str;
+		return temp.innerHTML;
+	};
+
+	/**
+	 * Check data validity based on timestamp and current time
+	 * @param  {Object}  saved The data object
+	 * @return {Boolean} Data validity
+	 */
+	var isDataValid = function (saved) {
+
+		// Check that there's data, and a timestamp key
+		if (!saved || !saved.data || !saved.timestamp) return false;
+
+		// Get the difference between the timestamp and current time
+		var difference = new Date().getTime() - saved.timestamp;
+
+		// Convert the difference into hours
+		var oneHour = 1000 * 60 * 60;
+		var convertedTime = difference / oneHour;
+
+		// Check if it's been less than an hour
+		if (convertedTime < 1) return true;
+	};
+
+	/**
+	 * Make XHR request to get news magazine
+	 */
+	var getAPIData = function (callback) {
+		var data;
+		// Set up our HTTP Request
+		var xhr = new XMLHttpRequest();
+
+		// Set up listener to process request state changes
+		xhr.onreadystatechange = function () {
+
+			// Only run if the request is complete
+			if (xhr.readyState !== 4) return;
+
+			// Process our return data
+			if (xhr.status >= 200 && xhr.status < 300) {
+				data = JSON.parse(xhr.responseText);
+				callback(data);
+			}
+		};
+
+		// Create and send a GET request
+		xhr.open('GET', getEndpoint());
+		xhr.send();
+	};
+
+	// Set up localStorage data
+	var getLocalData = function () {
+
+		// Get data from localStorage
+		var data = JSON.parse(localStorage.getItem('magazine'));
+
+		// Check if there is no data or data has expired
+		if (!data || !isDataValid(data)) {
+
+			// Create new data
+			getAPIData(function(data) {
+				if (data) {
+					var saved = {
+						data: data,
+						timestamp: new Date().getTime(),
+					};
+
+					// Save to localStorage
+					localStorage.setItem('magazine', JSON.stringify(saved));
+					data = JSON.parse(localStorage.getItem('magazine'));
+				}
+			});
+		}
+		return data;
+	};
+
+	var renderNews = function () {
+		var news = getLocalData();
+
+		// Render error message if there is no data
+		if (!news) {
+			renderErrorMessage();
+			return;
+		}
+
+		// Render news
+		var data = news.data;
+		var content = '<p>' + sanitizeHTML(data.tagline) + '</p>';
+
+		news.data.articles.forEach(function (article) {
+			content +=
+				'<article class="entry">' +
+					'<time class="entry-date">' + sanitizeHTML(article.pubdate) + '</time>' +
+					'<h2 class="entry-title">' + sanitizeHTML(article.title) + '</h2>' +
+					'<span class="entry-meta">By ' + sanitizeHTML(article.author) + ' in ' + sanitizeHTML(article.category) + '</span>' +
+					'<div class="entry-content">' + sanitizeHTML(article.article) + '</div>' +
+				'</article>';
+		});
+
+		app.innerHTML = content;
+	};
+
+	var renderErrorMessage = function () {
+		var content =
+			'<img src="../images/oops.gif" alt="Photo ">' +
+			'<p>Opps. There is something unexpected happened. Please refresh the page or try again later.</p>';
+
+		app.innerHTML = content;
+
+	};
+
+	renderNews();
+
+})(window, document);
