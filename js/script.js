@@ -128,7 +128,7 @@
 
 	var renderErrorMessage = function () {
 		var content =
-			'<img src="../images/oops.gif" alt="Photo ">' +
+			'<img src="images/oops.gif" alt="Photo of error message">' +
 			'<p>Opps. There is something unexpected happened. Please refresh the page or try again later.</p>';
 
 		app.innerHTML = content;
