@@ -135,7 +135,7 @@
 	var renderNews = function (data) {
 
 		// Bail if there is no data
-		if (!data) {
+		if (data.articles.length === 0) {
 			renderErrorMessage();
 			return;
 		}
